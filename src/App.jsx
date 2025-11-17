@@ -31,6 +31,7 @@ const ZaloMessages = lazy(() => import('./pages/ZaloMessages'))
 const TelegramMessages = lazy(() => import('./pages/TelegramMessages'))
 const ErrorLogs = lazy(() => import('./pages/ErrorLogs'))
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'))
+const QuickBotSetup = lazy(() => import('./pages/QuickBotSetup'))
 
 // Loading component
 const PageLoader = () => (
@@ -103,6 +104,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quick-bot-setup"
+                element={
+                  <ProtectedRoute>
+                    <QuickBotSetup />
                   </ProtectedRoute>
                 }
               />

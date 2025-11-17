@@ -37,6 +37,7 @@ import {
   Assessment as AssessmentIcon,
   Facebook as FacebookIcon,
   Telegram as TelegramIcon,
+  SmartToy as SmartToyIcon,
 } from '@mui/icons-material'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -174,6 +175,46 @@ const Sidebar = memo(function Sidebar({ mobileOpen, onMobileClose }) {
                   <DashboardIcon />
                 </ListItemIcon>
                 <ListItemText primary="Dashboard" />
+              </ListItemButton>
+            </ListItem>
+
+            {/* Tạo chat Bot Nhanh */}
+            <ListItem disablePadding sx={{ mb: 0.5, px: 1 }}>
+              <ListItemButton
+                onClick={() => handleNavigation('/quick-bot-setup')}
+                selected={location.pathname === '/quick-bot-setup'}
+                sx={{
+                  borderRadius: 2,
+                  bgcolor: 'success.light',
+                  color: 'success.contrastText',
+                  '&.Mui-selected': {
+                    backgroundColor: 'success.main',
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'success.dark',
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: 'white',
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: 'success.main',
+                    color: 'white',
+                    '& .MuiListItemIcon-root': {
+                      color: 'white',
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color: location.pathname === '/quick-bot-setup' ? 'white' : 'inherit',
+                    minWidth: 40,
+                  }}
+                >
+                  <SmartToyIcon />
+                </ListItemIcon>
+                <ListItemText primary="Tạo chat Bot Nhanh" />
               </ListItemButton>
             </ListItem>
             <Divider sx={{ my: 1, mx: 2 }} />

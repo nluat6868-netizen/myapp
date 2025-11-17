@@ -51,6 +51,7 @@ import {
 } from '@mui/icons-material'
 import * as XLSX from 'xlsx'
 import Toast from '../components/Toast'
+import { resizeImage } from '../utils/imageResize'
 
 function ProductsList() {
   const theme = useTheme()
@@ -127,23 +128,35 @@ function ProductsList() {
       // Handle multiple file upload for image-gallery
       if (attribute?.type === 'image-gallery') {
         const fileArray = Array.from(files)
-        const imagePromises = fileArray.map((file) => {
-          return new Promise((resolve) => {
-            if (!file.type.startsWith('image/')) {
-              resolve(null)
-              return
+        const imagePromises = fileArray.map(async (file) => {
+          if (!file.type.startsWith('image/')) {
+            return null
+          }
+          try {
+            // Resize image if it's too large (max 1920x1920, quality 0.8)
+            const resizedBase64 = await resizeImage(file, 1920, 1920, 0.8)
+            return {
+              fileName: file.name,
+              fileSize: file.size, // Original size for reference
+              fileType: file.type,
+              data: resizedBase64,
             }
-            const reader = new FileReader()
-            reader.onloadend = () => {
-              resolve({
-                fileName: file.name,
-                fileSize: file.size,
-                fileType: file.type,
-                data: reader.result,
-              })
-            }
-            reader.readAsDataURL(file)
-          })
+          } catch (error) {
+            console.error('Error resizing image:', error)
+            // Fallback to original if resize fails
+            return new Promise((resolve) => {
+              const reader = new FileReader()
+              reader.onloadend = () => {
+                resolve({
+                  fileName: file.name,
+                  fileSize: file.size,
+                  fileType: file.type,
+                  data: reader.result,
+                })
+              }
+              reader.readAsDataURL(file)
+            })
+          }
         })
 
         Promise.all(imagePromises).then((images) => {
@@ -157,17 +170,47 @@ function ProductsList() {
       } else {
         // Handle single file upload
         const file = files[0]
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          newFormData[attributeId] = {
-            fileName: file.name,
-            fileSize: file.size,
-            fileType: file.type,
-            data: reader.result,
+        if (file.type.startsWith('image/')) {
+          // Resize image if it's an image
+          resizeImage(file, 1920, 1920, 0.8)
+            .then((resizedBase64) => {
+              newFormData[attributeId] = {
+                fileName: file.name,
+                fileSize: file.size, // Original size for reference
+                fileType: file.type,
+                data: resizedBase64,
+              }
+              setFormData(newFormData)
+            })
+            .catch((error) => {
+              console.error('Error resizing image:', error)
+              // Fallback to original if resize fails
+              const reader = new FileReader()
+              reader.onloadend = () => {
+                newFormData[attributeId] = {
+                  fileName: file.name,
+                  fileSize: file.size,
+                  fileType: file.type,
+                  data: reader.result,
+                }
+                setFormData(newFormData)
+              }
+              reader.readAsDataURL(file)
+            })
+        } else {
+          // Non-image file, read as normal
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            newFormData[attributeId] = {
+              fileName: file.name,
+              fileSize: file.size,
+              fileType: file.type,
+              data: reader.result,
+            }
+            setFormData(newFormData)
           }
-          setFormData(newFormData)
+          reader.readAsDataURL(file)
         }
-        reader.readAsDataURL(file)
       }
     } else {
       newFormData[attributeId] = value

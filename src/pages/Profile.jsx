@@ -25,6 +25,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Toast from '../components/Toast'
+import { resizeImage } from '../utils/imageResize'
 
 function Profile() {
   const navigate = useNavigate()
@@ -68,6 +69,8 @@ function Profile() {
     }
   }, [user])
 
+  const authState = useSelector((state) => state.auth)
+
   // Handle update success/error
   useEffect(() => {
     if (!userState.loading && userState.error) {
@@ -77,10 +80,19 @@ function Profile() {
         severity: 'error',
       })
       setLoading(false)
-    } else if (!userState.loading && !userState.error && userState.users.length > 0) {
+    } else if (!userState.loading && !userState.error && authState.user) {
       // Check if current user was updated
-      const updatedUser = userState.users.find((u) => u._id === user?._id)
-      if (updatedUser) {
+      if (authState.user._id === user?._id) {
+        // Update form data and avatar preview with new user data
+        const updatedUser = authState.user
+        setFormData({
+          name: updatedUser.name || '',
+          email: updatedUser.email || '',
+          avatar: updatedUser.avatar || null,
+          phone: updatedUser.phone || '',
+          address: updatedUser.address || '',
+        })
+        setAvatarPreview(updatedUser.avatar || null)
         setToast({
           open: true,
           message: 'Cập nhật thông tin thành công!',
@@ -96,7 +108,7 @@ function Profile() {
         setLoading(false)
       }
     }
-  }, [userState.loading, userState.error, userState.users, user?._id])
+  }, [userState.loading, userState.error, authState.user, user?._id])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -210,13 +222,19 @@ function Profile() {
 
       // Upload avatar if new file is selected
       if (avatarFile) {
-        const reader = new FileReader()
-        const base64Avatar = await new Promise((resolve, reject) => {
-          reader.onloadend = () => resolve(reader.result)
-          reader.onerror = reject
-          reader.readAsDataURL(avatarFile)
-        })
-        avatarUrl = base64Avatar
+        try {
+          // Resize avatar image to reduce file size (max 800x800, quality 0.8)
+          avatarUrl = await resizeImage(avatarFile, 800, 800, 0.8)
+        } catch (error) {
+          console.error('Error resizing avatar:', error)
+          // Fallback to original if resize fails
+          const reader = new FileReader()
+          avatarUrl = await new Promise((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result)
+            reader.onerror = reject
+            reader.readAsDataURL(avatarFile)
+          })
+        }
       }
 
       // Prepare user data
@@ -243,19 +261,7 @@ function Profile() {
         },
       })
 
-      setToast({
-        open: true,
-        message: 'Cập nhật thông tin thành công!',
-        severity: 'success',
-      })
-
-      // Clear password fields
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      })
-      setAvatarFile(null)
+      // Don't set toast here - let useEffect handle it after successful update
     } catch (error) {
       setToast({
         open: true,
@@ -288,12 +294,6 @@ function Profile() {
             Quản lý thông tin tài khoản và cài đặt bảo mật của bạn
           </Typography>
         </Box>
-
-        {successMessage && (
-          <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage('')}>
-            {successMessage}
-          </Alert>
-        )}
 
         <form onSubmit={handleSubmit}>
           {/* Avatar Section */}
@@ -505,6 +505,13 @@ function Profile() {
             </Button>
           </Box>
         </form>
+
+        <Toast
+          open={toast.open}
+          message={toast.message}
+          severity={toast.severity}
+          onClose={() => setToast({ ...toast, open: false })}
+        />
       </Container>
   )
 }

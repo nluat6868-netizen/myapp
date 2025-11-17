@@ -64,12 +64,6 @@ function Register() {
       newErrors.email = 'Email không được để trống'
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email không hợp lệ'
-    } else {
-      // Check if email already exists
-      const users = JSON.parse(localStorage.getItem('users') || '[]')
-      if (users.some((u) => u.email === formData.email)) {
-        newErrors.email = 'Email này đã được sử dụng'
-      }
     }
 
     if (!formData.password) {
@@ -92,16 +86,11 @@ function Register() {
     e.preventDefault()
     if (!validateForm()) return
 
-    // Register user
+    // Register user - role will be set to 'admin' by default on backend
     const newUser = {
-      id: Date.now(),
       name: formData.name,
       email: formData.email,
-      password: formData.password, // In real app, this should be hashed
-      avatar: null,
-      role: 'user', // Default role
-      permissions: [], // Default: no permissions
-      createdAt: new Date().toISOString(),
+      password: formData.password,
     }
 
     register(newUser)

@@ -71,6 +71,9 @@ function ProductsList() {
   const [anchorEl, setAnchorEl] = useState(null)
   const rowsPerPage = 10
   const prevLoading = useRef(false)
+  const productError = useSelector((state) => state.products?.error)
+  const productAttributeError = useSelector((state) => state.productAttributes?.error)
+  const productLoading = useSelector((state) => state.products?.loading)
 
   // Load attributes and products from Redux
   useEffect(() => {
@@ -79,7 +82,6 @@ function ProductsList() {
   }, [dispatch])
 
   // Handle success messages
-  const prevLoading = useRef(productLoading)
   useEffect(() => {
     if (prevLoading.current && !productLoading && !productError) {
       // Check if it was a create/update/delete action
@@ -702,10 +704,6 @@ function ProductsList() {
         return null
     }
   }
-
-  const productError = useSelector((state) => state.products?.error)
-  const productAttributeError = useSelector((state) => state.productAttributes?.error)
-  const productLoading = useSelector((state) => state.products?.loading)
 
   // Handle Redux success/error
   useEffect(() => {

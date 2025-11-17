@@ -21,6 +21,8 @@ import {
   InputLabel,
   FormControl,
   FormHelperText,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -214,6 +216,8 @@ function EditorDropZone({ children, type, label }) {
 }
 
 function Templates() {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [attributes, setAttributes] = useState([])
   const [templates, setTemplates] = useState(() => {
     const saved = localStorage.getItem('templates')
@@ -683,7 +687,8 @@ function Templates() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => handleOpenDialog()}
-          fullWidth={{ xs: true, sm: false }}
+          fullWidth={isMobile}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           Tạo Template mới
         </Button>

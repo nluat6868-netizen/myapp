@@ -208,6 +208,7 @@ const Navbar = memo(function Navbar({ onMenuClick, user }) {
             aria-expanded={open ? 'true' : undefined}
           >
             <Avatar
+              src={user?.avatar}
               sx={{
                 width: 36,
                 height: 36,
@@ -256,7 +257,7 @@ const Navbar = memo(function Navbar({ onMenuClick, user }) {
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
         >
           <MenuItem onClick={handleClose}>
-            <Avatar sx={{ bgcolor: 'primary.main' }}>
+            <Avatar src={user?.avatar} sx={{ bgcolor: 'primary.main' }}>
               {userInitial}
             </Avatar>
             <Box>

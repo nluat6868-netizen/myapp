@@ -423,7 +423,8 @@ function Users() {
           variant="contained"
           startIcon={<PersonIcon />}
           onClick={() => handleOpenDialog()}
-          fullWidth={{ xs: true, sm: false }}
+          fullWidth={isMobile}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           Thêm người dùng
         </Button>

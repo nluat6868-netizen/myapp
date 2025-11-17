@@ -317,6 +317,7 @@ function Dashboard() {
             </Typography>
           </Box>
           <Avatar
+            src={user?.avatar}
             sx={{
               width: { xs: 48, sm: 56, md: 64 },
               height: { xs: 48, sm: 56, md: 64 },

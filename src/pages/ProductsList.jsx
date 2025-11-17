@@ -735,6 +735,16 @@ function ProductsList() {
     }
   }, [productLoading, productError])
 
+  // Debug: Log attributes state
+  useEffect(() => {
+    console.log('Attributes state:', { 
+      attributes, 
+      attributesLoading, 
+      attributesLength: attributes?.length,
+      productAttributeError 
+    })
+  }, [attributes, attributesLoading, productAttributeError])
+
   if (attributesLoading) {
     return (
       <Container maxWidth="lg" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -743,7 +753,8 @@ function ProductsList() {
     )
   }
 
-  if (attributes.length === 0) {
+  // Check if attributes is undefined, null, or empty array
+  if (!attributes || !Array.isArray(attributes) || attributes.length === 0) {
     return (
       <Container maxWidth="lg" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Card>
@@ -754,6 +765,11 @@ function ProductsList() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Vui lòng tạo thuộc tính trước khi thêm sản phẩm
             </Typography>
+            {productAttributeError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                Lỗi: {productAttributeError}
+              </Alert>
+            )}
             <Button
               variant="contained"
               onClick={() => window.location.href = '/products/attributes'}

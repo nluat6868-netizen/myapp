@@ -655,7 +655,11 @@ function Dashboard() {
               >
                 Xu hướng đơn hàng (7 ngày qua)
               </Typography>
-              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto' }}>
+              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Biểu đồ tạm thời bị tắt để deploy
+                </Typography>
+                {/* Temporarily commented out for deployment
                 <ResponsiveContainer>
                   <AreaChart data={ordersChartData}>
                     <defs>
@@ -677,6 +681,7 @@ function Dashboard() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+                */}
               </Box>
             </CardContent>
           </Card>
@@ -695,7 +700,11 @@ function Dashboard() {
                 Phân bố trạng thái đơn hàng
               </Typography>
               {orderStatusData.length > 0 ? (
-                <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2 }}>
+                <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Biểu đồ tạm thời bị tắt để deploy
+                  </Typography>
+                  {/* Temporarily commented out for deployment
                   <ResponsiveContainer>
                     <PieChart>
                       <Pie
@@ -715,6 +724,7 @@ function Dashboard() {
                       <Tooltip />
                     </PieChart>
                   </ResponsiveContainer>
+                  */}
                 </Box>
               ) : (
                 <Box
@@ -779,7 +789,11 @@ function Dashboard() {
               >
                 Đơn hàng & Doanh thu
               </Typography>
-              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto' }}>
+              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Biểu đồ tạm thời bị tắt để deploy
+                </Typography>
+                {/* Temporarily commented out for deployment
                 <ResponsiveContainer>
                   <LineChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -806,6 +820,7 @@ function Dashboard() {
                     />
                   </LineChart>
                 </ResponsiveContainer>
+                */}
               </Box>
             </CardContent>
           </Card>

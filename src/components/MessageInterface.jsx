@@ -350,9 +350,13 @@ const MessageInterface = ({ platform, platformIcon, platformColor }) => {
   }, [error])
 
   useEffect(() => {
-    // Scroll to bottom when new message is added
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [selectedConversation?.messages])
+    // Scroll to bottom when conversation is first loaded or new message is added
+    if (selectedConversation?.messages && selectedConversation.messages.length > 0) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    }
+  }, [selectedConversation?.id, selectedConversation?.messages?.length])
 
   const filteredConversations = useMemo(() => {
     let sorted = [...conversations]
@@ -810,9 +814,15 @@ const MessageInterface = ({ platform, platformIcon, platformColor }) => {
 
           {/* Messages */}
           <Box
+            ref={(el) => {
+              if (el) {
+                // Store ref for scroll handling
+              }
+            }}
             sx={{
               flex: 1,
               overflow: 'auto',
+              overflowY: 'scroll',
               p: { xs: 2, md: 3 },
               display: 'flex',
               flexDirection: 'column',
@@ -834,7 +844,8 @@ const MessageInterface = ({ platform, platformIcon, platformColor }) => {
               },
             }}
           >
-            {selectedConversation.messages?.map((message, index) => {
+            {selectedConversation.messages && selectedConversation.messages.length > 0 ? (
+              selectedConversation.messages.map((message, index) => {
               const isMe = message.sender === 'user'
               const messageTime = message.timestamp || message.createdAt
               const prevMessageTime = selectedConversation.messages[index - 1]?.timestamp || selectedConversation.messages[index - 1]?.createdAt

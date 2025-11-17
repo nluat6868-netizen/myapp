@@ -126,11 +126,14 @@ export const createUser = asyncHandler(async (req, res) => {
     throw new Error('User already exists')
   }
 
+  // Ensure role is 'admin' if not provided or empty
+  const userRole = role && role.trim() ? role : 'admin'
+
   const user = await User.create({
     name,
     email,
     password,
-    role: role || 'admin', // Default to admin for new users
+    role: userRole, // Default to admin for new users (model default is also admin)
     permissions: permissions || [],
   })
 
@@ -203,7 +206,7 @@ export const createUser = asyncHandler(async (req, res) => {
  *         description: Server error
  */
 export const updateUser = asyncHandler(async (req, res) => {
-  const { name, email, password, role, permissions } = req.body
+  const { name, email, password, role, permissions, avatar, phone, address, currentPassword } = req.body
 
   const user = await User.findById(req.params.id)
 
@@ -212,10 +215,22 @@ export const updateUser = asyncHandler(async (req, res) => {
     throw new Error('User not found')
   }
 
-  user.name = name || user.name
-  user.email = email || user.email
-  user.role = role || user.role
+  // Verify current password if changing password
+  if (password && currentPassword) {
+    const isPasswordValid = await user.matchPassword(currentPassword)
+    if (!isPasswordValid) {
+      res.status(400)
+      throw new Error('Mật khẩu hiện tại không đúng')
+    }
+  }
+
+  user.name = name !== undefined ? name : user.name
+  user.email = email !== undefined ? email : user.email
+  user.role = role !== undefined ? role : user.role
   user.permissions = permissions !== undefined ? permissions : user.permissions
+  user.avatar = avatar !== undefined ? avatar : user.avatar
+  user.phone = phone !== undefined ? phone : user.phone
+  user.address = address !== undefined ? address : user.address
 
   if (password) {
     const salt = await bcrypt.genSalt(10)
@@ -240,6 +255,8 @@ export const updateUser = asyncHandler(async (req, res) => {
     role: updatedUser.role,
     permissions: updatedUser.permissions,
     avatar: updatedUser.avatar,
+    phone: updatedUser.phone,
+    address: updatedUser.address,
     updatedAt: updatedUser.updatedAt,
   })
 })

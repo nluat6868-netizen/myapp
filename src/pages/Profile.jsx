@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import {
   Box,
   Container,
@@ -12,6 +13,7 @@ import {
   IconButton,
   InputAdornment,
   Alert,
+  CircularProgress,
 } from '@mui/material'
 import {
   PhotoCamera,
@@ -21,19 +23,22 @@ import {
   Cancel,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
-
-// Mock user data - trong thực tế sẽ lấy từ context/state management
-const initialUserData = {
-  name: 'Nguyễn Văn A',
-  email: 'nguyenvana@example.com',
-  avatar: null,
-  phone: '0123456789',
-  address: '123 Đường ABC, Quận XYZ, TP.HCM',
-}
+import { useAuth } from '../context/AuthContext'
+import Toast from '../components/Toast'
 
 function Profile() {
   const navigate = useNavigate()
-  const [formData, setFormData] = useState(initialUserData)
+  const dispatch = useDispatch()
+  const { user } = useAuth()
+  const userState = useSelector((state) => state.users)
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    avatar: null,
+    phone: '',
+    address: '',
+  })
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -45,8 +50,53 @@ function Profile() {
     confirm: false,
   })
   const [avatarPreview, setAvatarPreview] = useState(null)
+  const [avatarFile, setAvatarFile] = useState(null)
   const [errors, setErrors] = useState({})
-  const [successMessage, setSuccessMessage] = useState('')
+  const [toast, setToast] = useState({ open: false, message: '', severity: 'info' })
+
+  // Load user data from API
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        avatar: user.avatar || null,
+        phone: user.phone || '',
+        address: user.address || '',
+      })
+      setAvatarPreview(user.avatar || null)
+    }
+  }, [user])
+
+  // Handle update success/error
+  useEffect(() => {
+    if (!userState.loading && userState.error) {
+      setToast({
+        open: true,
+        message: userState.error,
+        severity: 'error',
+      })
+      setLoading(false)
+    } else if (!userState.loading && !userState.error && userState.users.length > 0) {
+      // Check if current user was updated
+      const updatedUser = userState.users.find((u) => u._id === user?._id)
+      if (updatedUser) {
+        setToast({
+          open: true,
+          message: 'Cập nhật thông tin thành công!',
+          severity: 'success',
+        })
+        // Clear password fields
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        })
+        setAvatarFile(null)
+        setLoading(false)
+      }
+    }
+  }, [userState.loading, userState.error, userState.users, user?._id])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -83,37 +133,29 @@ function Profile() {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        setErrors((prev) => ({
-          ...prev,
-          avatar: 'Vui lòng chọn file ảnh',
-        }))
+        setToast({
+          open: true,
+          message: 'Vui lòng chọn file ảnh',
+          severity: 'error',
+        })
         return
       }
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setErrors((prev) => ({
-          ...prev,
-          avatar: 'Kích thước ảnh không được vượt quá 5MB',
-        }))
+        setToast({
+          open: true,
+          message: 'Kích thước ảnh không được vượt quá 5MB',
+          severity: 'error',
+        })
         return
       }
       // Create preview
       const reader = new FileReader()
       reader.onloadend = () => {
         setAvatarPreview(reader.result)
-        setFormData((prev) => ({
-          ...prev,
-          avatar: file,
-        }))
+        setAvatarFile(file)
       }
       reader.readAsDataURL(file)
-      // Clear error
-      if (errors.avatar) {
-        setErrors((prev) => ({
-          ...prev,
-          avatar: '',
-        }))
-      }
     }
   }
 
@@ -158,16 +200,70 @@ function Profile() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (validateForm()) {
-      // Xử lý lưu thông tin ở đây
-      console.log('Form data:', formData)
-      if (passwordData.newPassword) {
-        console.log('Password change requested')
+    if (!validateForm()) return
+
+    setLoading(true)
+    try {
+      let avatarUrl = formData.avatar
+
+      // Upload avatar if new file is selected
+      if (avatarFile) {
+        const reader = new FileReader()
+        const base64Avatar = await new Promise((resolve, reject) => {
+          reader.onloadend = () => resolve(reader.result)
+          reader.onerror = reject
+          reader.readAsDataURL(avatarFile)
+        })
+        avatarUrl = base64Avatar
       }
-      setSuccessMessage('Cập nhật thông tin thành công!')
-      setTimeout(() => setSuccessMessage(''), 3000)
+
+      // Prepare user data
+      const userData = {
+        name: formData.name,
+        email: formData.email,
+        avatar: avatarUrl,
+        phone: formData.phone,
+        address: formData.address,
+      }
+
+      // Update password if provided
+      if (passwordData.newPassword) {
+        userData.password = passwordData.newPassword
+        userData.currentPassword = passwordData.currentPassword
+      }
+
+      // Update user via API
+      dispatch({
+        type: 'UPDATE_USER_REQUEST',
+        payload: {
+          id: user._id,
+          userData,
+        },
+      })
+
+      setToast({
+        open: true,
+        message: 'Cập nhật thông tin thành công!',
+        severity: 'success',
+      })
+
+      // Clear password fields
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      })
+      setAvatarFile(null)
+    } catch (error) {
+      setToast({
+        open: true,
+        message: error.message || 'Có lỗi xảy ra khi cập nhật thông tin',
+        severity: 'error',
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -205,7 +301,7 @@ function Profile() {
             <CardContent>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
                 <Avatar
-                  src={avatarPreview}
+                  src={avatarPreview || user?.avatar}
                   sx={{
                     width: 120,
                     height: 120,
@@ -214,7 +310,7 @@ function Profile() {
                     mb: 2,
                   }}
                 >
-                  {!avatarPreview && formData.name?.charAt(0)?.toUpperCase()}
+                  {!avatarPreview && !user?.avatar && formData.name?.charAt(0)?.toUpperCase()}
                 </Avatar>
                 <input
                   accept="image/*"

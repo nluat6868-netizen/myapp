@@ -29,7 +29,23 @@ function* updateUserSaga(action) {
   try {
     const { id, userData } = action.payload
     const response = yield call(usersAPI.updateUser, id, userData)
-    yield put({ type: 'UPDATE_USER_SUCCESS', payload: response.data })
+    const updatedUser = response.data
+    
+    yield put({ type: 'UPDATE_USER_SUCCESS', payload: updatedUser })
+    
+    // Update auth state if updating current user
+    const authState = yield select((state) => state.auth)
+    if (authState.user && authState.user._id === id) {
+      yield put({ type: 'GET_ME_SUCCESS', payload: updatedUser })
+      // Update localStorage
+      const savedUser = localStorage.getItem('user')
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser)
+        if (parsedUser._id === id) {
+          localStorage.setItem('user', JSON.stringify(updatedUser))
+        }
+      }
+    }
   } catch (error) {
     yield put({
       type: 'UPDATE_USER_FAILURE',

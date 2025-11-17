@@ -14,11 +14,39 @@ connectDB()
 
 const app = express()
 
-// Middleware
+// Middleware - CORS configuration
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true)
+      
+      // Allow localhost for development
+      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+        return callback(null, true)
+      }
+      
+      // Allow all Vercel preview and production URLs
+      if (
+        origin.includes('.vercel.app') ||
+        origin.includes('vercel.app') ||
+        origin === process.env.FRONTEND_URL
+      ) {
+        return callback(null, true)
+      }
+      
+      // In development, allow all origins for easier testing
+      if (process.env.NODE_ENV === 'development') {
+        return callback(null, true)
+      }
+      
+      // Default: allow (for production, you might want to be more strict)
+      callback(null, true)
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
   })
 )
 app.use(express.json())

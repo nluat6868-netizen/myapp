@@ -11,7 +11,6 @@ import {
   Box,
   InputAdornment,
   IconButton,
-  Alert,
 } from '@mui/material'
 import {
   Visibility,
@@ -127,19 +126,6 @@ function Login() {
                 Nhập thông tin để đăng nhập vào tài khoản của bạn
               </Typography>
             </Box>
-
-            {/* Admin Account Info */}
-            <Alert severity="info" sx={{ mb: 3 }}>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Tài khoản Admin mặc định:
-              </Typography>
-              <Typography variant="body2" component="div">
-                📧 Email: <strong>nluat134@gmail.com</strong>
-              </Typography>
-              <Typography variant="body2" component="div">
-                🔑 Mật khẩu: <strong>admin123</strong>
-              </Typography>
-            </Alert>
 
             <form onSubmit={handleSubmit}>
               <TextField

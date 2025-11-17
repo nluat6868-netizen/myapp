@@ -1,4 +1,4 @@
-import { Typography, Box, Paper, Chip, Grid } from '@mui/material'
+import { Typography, Box, Paper, Chip, Grid, useMediaQuery, useTheme } from '@mui/material'
 import { Message as MessageIcon, ShoppingCart as ShoppingCartIcon } from '@mui/icons-material'
 import MessageInterface from '../components/MessageInterface'
 import { useEffect } from 'react'
@@ -23,7 +23,9 @@ const ZaloIcon = ({ size = 32 }) => (
 
 function ZaloMessages() {
   const dispatch = useDispatch()
-  const { stats } = useSelector((state) => state.messages)
+  const { stats, selectedConversation } = useSelector((state) => state.messages)
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   useEffect(() => {
     // Load stats from API
@@ -31,7 +33,7 @@ function ZaloMessages() {
   }, [dispatch])
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', p: { xs: 1, sm: 2, md: 3 } }}>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', p: { xs: selectedConversation ? 0 : 1, sm: selectedConversation ? 0 : 2, md: selectedConversation ? 0 : 3 } }}>
       <Paper
         elevation={0}
         sx={{
@@ -41,6 +43,7 @@ function ZaloMessages() {
           bgcolor: 'background.paper',
           border: '1px solid',
           borderColor: 'divider',
+          display: selectedConversation ? 'none' : 'block',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 2 }}>
@@ -128,7 +131,7 @@ function ZaloMessages() {
           </Grid>
         </Grid>
       </Paper>
-      <Box sx={{ flex: 1, minHeight: 0 }}>
+      <Box sx={{ flex: 1, minHeight: 0, height: selectedConversation ? '100vh' : 'auto', flexGrow: 1 }}>
         <MessageInterface
           platform="zalo"
           platformIcon={<ZaloIcon size={48} />}

@@ -40,24 +40,23 @@ import {
   History as HistoryIcon,
   Person as PersonIcon,
 } from '@mui/icons-material'
-// Temporarily commented out for deployment
-// import {
-//   LineChart,
-//   Line,
-//   AreaChart,
-//   Area,
-//   BarChart,
-//   Bar,
-//   PieChart,
-//   Pie,
-//   Cell,
-//   XAxis,
-//   YAxis,
-//   CartesianGrid,
-//   Tooltip,
-//   Legend,
-//   ResponsiveContainer,
-// } from 'recharts'
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { productsAPI, ordersAPI, promotionsAPI } from '../services/api'
@@ -655,11 +654,7 @@ function Dashboard() {
               >
                 Xu hướng đơn hàng (7 ngày qua)
               </Typography>
-              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Biểu đồ tạm thời bị tắt để deploy
-                </Typography>
-                {/* Temporarily commented out for deployment
+              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto' }}>
                 <ResponsiveContainer>
                   <AreaChart data={ordersChartData}>
                     <defs>
@@ -681,7 +676,6 @@ function Dashboard() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
-                */}
               </Box>
             </CardContent>
           </Card>
@@ -700,11 +694,7 @@ function Dashboard() {
                 Phân bố trạng thái đơn hàng
               </Typography>
               {orderStatusData.length > 0 ? (
-                <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Biểu đồ tạm thời bị tắt để deploy
-                  </Typography>
-                  {/* Temporarily commented out for deployment
+                <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2 }}>
                   <ResponsiveContainer>
                     <PieChart>
                       <Pie
@@ -724,7 +714,6 @@ function Dashboard() {
                       <Tooltip />
                     </PieChart>
                   </ResponsiveContainer>
-                  */}
                 </Box>
               ) : (
                 <Box
@@ -756,11 +745,7 @@ function Dashboard() {
               >
                 Doanh thu theo tháng
               </Typography>
-              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Biểu đồ tạm thời bị tắt để deploy
-                </Typography>
-                {/* Temporarily commented out for deployment
+              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto' }}>
                 <ResponsiveContainer>
                   <BarChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -771,7 +756,6 @@ function Dashboard() {
                     <Bar dataKey="revenue" fill="#2e7d32" name="Doanh thu" />
                   </BarChart>
                 </ResponsiveContainer>
-                */}
               </Box>
             </CardContent>
           </Card>
@@ -789,11 +773,7 @@ function Dashboard() {
               >
                 Đơn hàng & Doanh thu
               </Typography>
-              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Biểu đồ tạm thời bị tắt để deploy
-                </Typography>
-                {/* Temporarily commented out for deployment
+              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto' }}>
                 <ResponsiveContainer>
                   <LineChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -820,7 +800,6 @@ function Dashboard() {
                     />
                   </LineChart>
                 </ResponsiveContainer>
-                */}
               </Box>
             </CardContent>
           </Card>
@@ -839,11 +818,7 @@ function Dashboard() {
                 >
                   Sản phẩm theo danh mục
                 </Typography>
-                <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Biểu đồ tạm thời bị tắt để deploy
-                  </Typography>
-                  {/* Temporarily commented out for deployment
+                <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto' }}>
                   <ResponsiveContainer>
                     <BarChart data={productsByCategory} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" />
@@ -853,7 +828,6 @@ function Dashboard() {
                       <Bar dataKey="value" fill="#00bcd4" name="Số lượng" />
                     </BarChart>
                   </ResponsiveContainer>
-                  */}
                 </Box>
               </CardContent>
             </Card>

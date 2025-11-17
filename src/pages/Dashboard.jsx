@@ -40,23 +40,24 @@ import {
   History as HistoryIcon,
   Person as PersonIcon,
 } from '@mui/icons-material'
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts'
+// Temporarily commented out for deployment
+// import {
+//   LineChart,
+//   Line,
+//   AreaChart,
+//   Area,
+//   BarChart,
+//   Bar,
+//   PieChart,
+//   Pie,
+//   Cell,
+//   XAxis,
+//   YAxis,
+//   CartesianGrid,
+//   Tooltip,
+//   Legend,
+//   ResponsiveContainer,
+// } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { productsAPI, ordersAPI, promotionsAPI } from '../services/api'
@@ -745,7 +746,11 @@ function Dashboard() {
               >
                 Doanh thu theo tháng
               </Typography>
-              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto' }}>
+              <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Biểu đồ tạm thời bị tắt để deploy
+                </Typography>
+                {/* Temporarily commented out for deployment
                 <ResponsiveContainer>
                   <BarChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -756,6 +761,7 @@ function Dashboard() {
                     <Bar dataKey="revenue" fill="#2e7d32" name="Doanh thu" />
                   </BarChart>
                 </ResponsiveContainer>
+                */}
               </Box>
             </CardContent>
           </Card>
@@ -818,7 +824,11 @@ function Dashboard() {
                 >
                   Sản phẩm theo danh mục
                 </Typography>
-                <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto' }}>
+                <Box sx={{ width: '100%', height: { xs: 250, sm: 300 }, mt: 2, overflowX: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Biểu đồ tạm thời bị tắt để deploy
+                  </Typography>
+                  {/* Temporarily commented out for deployment
                   <ResponsiveContainer>
                     <BarChart data={productsByCategory} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" />
@@ -828,6 +838,7 @@ function Dashboard() {
                       <Bar dataKey="value" fill="#00bcd4" name="Số lượng" />
                     </BarChart>
                   </ResponsiveContainer>
+                  */}
                 </Box>
               </CardContent>
             </Card>

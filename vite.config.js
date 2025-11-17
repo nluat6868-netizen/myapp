@@ -12,6 +12,9 @@ export default defineConfig({
     port: 3000,
     open: true
   },
+  optimizeDeps: {
+    include: ['recharts'],
+  },
   build: {
     rollupOptions: {
       onwarn(warning, warn) {
@@ -20,6 +23,9 @@ export default defineConfig({
         if (warning.message && warning.message.includes('useAuth')) return
         warn(warning)
       },
+    },
+    commonjsOptions: {
+      include: [/recharts/, /node_modules/],
     },
   },
 })

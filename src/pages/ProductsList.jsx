@@ -467,44 +467,6 @@ function ProductsList() {
     setOpenDownloadDialog(false)
   }
 
-  // Memoize findImageAttribute function
-  const findImageAttribute = useCallback(
-    (product) => {
-      // Backend uses 'attributes', frontend uses 'data' for compatibility
-      let productData = product.attributes || product.data || {}
-      
-      // Convert Map to object if needed
-      if (productData instanceof Map) {
-        productData = Object.fromEntries(productData)
-      }
-      
-      // First, check for image-gallery
-      for (const attr of attributes) {
-        const attrId = attr._id || attr.id
-        if (attr.type === 'image-gallery' && productData[attrId]) {
-          const galleryData = productData[attrId]
-          if (Array.isArray(galleryData) && galleryData.length > 0) {
-            return { attribute: attr, imageData: galleryData[0], isGallery: true, gallery: galleryData }
-          }
-        }
-      }
-      // Then check for single file image
-      for (const attr of attributes) {
-        const attrId = attr._id || attr.id
-        if (attr.type === 'file' && productData[attrId]) {
-          const fileData = productData[attrId]
-          if (fileData?.fileType && fileData.fileType.startsWith('image/')) {
-            return { attribute: attr, imageData: fileData, isGallery: false }
-          }
-          if (fileData?.data && typeof fileData.data === 'string' && fileData.data.startsWith('data:image/')) {
-            return { attribute: attr, imageData: fileData, isGallery: false }
-          }
-        }
-      }
-      return null
-    },
-    [attributes]
-  )
 
   const renderFormField = (attribute) => {
     const attrId = attribute._id || attribute.id
@@ -743,6 +705,73 @@ function ProductsList() {
     })
   }, [attributes, attributesLoading, productAttributeError])
 
+  // Helper function to convert Map to object if needed
+  // MUST be defined before any early returns (React Hooks Rules)
+  const getProductAttributes = useCallback((product) => {
+    if (!product) return {}
+    let attrs = product.attributes || product.data || {}
+    
+    // If it's a Map, convert to object
+    if (attrs instanceof Map) {
+      attrs = Object.fromEntries(attrs)
+    }
+    
+    // If it's already an object but might have Map values, convert recursively
+    if (typeof attrs === 'object' && attrs !== null && !Array.isArray(attrs)) {
+      const result = {}
+      for (const key in attrs) {
+        if (attrs[key] instanceof Map) {
+          result[key] = Object.fromEntries(attrs[key])
+        } else {
+          result[key] = attrs[key]
+        }
+      }
+      return result
+    }
+    
+    return attrs || {}
+  }, [])
+
+  // Memoize findImageAttribute function - MUST be before early returns
+  const findImageAttribute = useCallback(
+    (product) => {
+      // Backend uses 'attributes', frontend uses 'data' for compatibility
+      let productData = product.attributes || product.data || {}
+      
+      // Convert Map to object if needed
+      if (productData instanceof Map) {
+        productData = Object.fromEntries(productData)
+      }
+      
+      // First, check for image-gallery
+      for (const attr of attributes) {
+        const attrId = attr._id || attr.id
+        if (attr.type === 'image-gallery' && productData[attrId]) {
+          const galleryData = productData[attrId]
+          if (Array.isArray(galleryData) && galleryData.length > 0) {
+            return { attribute: attr, imageData: galleryData[0], isGallery: true, gallery: galleryData }
+          }
+        }
+      }
+      // Then check for single file image
+      for (const attr of attributes) {
+        const attrId = attr._id || attr.id
+        if (attr.type === 'file' && productData[attrId]) {
+          const fileData = productData[attrId]
+          if (fileData?.fileType && fileData.fileType.startsWith('image/')) {
+            return { attribute: attr, imageData: fileData, isGallery: false }
+          }
+          if (fileData?.data && typeof fileData.data === 'string' && fileData.data.startsWith('data:image/')) {
+            return { attribute: attr, imageData: fileData, isGallery: false }
+          }
+        }
+      }
+      return null
+    },
+    [attributes]
+  )
+
+  // Early returns AFTER all hooks
   if (attributesLoading) {
     return (
       <Container maxWidth="lg" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -779,32 +808,6 @@ function ProductsList() {
       </Container>
     )
   }
-
-  // Helper function to convert Map to object if needed
-  const getProductAttributes = useCallback((product) => {
-    if (!product) return {}
-    let attrs = product.attributes || product.data || {}
-    
-    // If it's a Map, convert to object
-    if (attrs instanceof Map) {
-      attrs = Object.fromEntries(attrs)
-    }
-    
-    // If it's already an object but might have Map values, convert recursively
-    if (typeof attrs === 'object' && attrs !== null && !Array.isArray(attrs)) {
-      const result = {}
-      for (const key in attrs) {
-        if (attrs[key] instanceof Map) {
-          result[key] = Object.fromEntries(attrs[key])
-        } else {
-          result[key] = attrs[key]
-        }
-      }
-      return result
-    }
-    
-    return attrs || {}
-  }, [])
 
   const sortedAttributes = [...attributes].sort((a, b) => (a.order || 0) - (b.order || 0))
 

@@ -14,18 +14,23 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['recharts'],
+    esbuildOptions: {
+      target: 'es2020',
+    },
   },
   build: {
+    commonjsOptions: {
+      include: [/recharts/, /node_modules/],
+      transformMixedEsModules: true,
+    },
     rollupOptions: {
       onwarn(warning, warn) {
         // Suppress "useAuth" export warnings
         if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return
         if (warning.message && warning.message.includes('useAuth')) return
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return
         warn(warning)
       },
-    },
-    commonjsOptions: {
-      include: [/recharts/, /node_modules/],
     },
   },
 })

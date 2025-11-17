@@ -1028,7 +1028,23 @@ const MessageInterface = ({ platform, platformIcon, platformColor }) => {
                   </Box>
                 </Fade>
               )
-            })}
+            })
+            ) : (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  py: 8,
+                  minHeight: 300,
+                }}
+              >
+                <Typography variant="body1" color="text.secondary">
+                  Chưa có tin nhắn nào
+                </Typography>
+              </Box>
+            )}
             <div ref={messagesEndRef} />
           </Box>
 

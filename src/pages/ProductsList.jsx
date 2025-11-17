@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import {
   Container,
   Card,
@@ -21,7 +22,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Alert,
   Chip,
   Select,
   MenuItem,
@@ -30,6 +30,11 @@ import {
   useTheme,
   useMediaQuery,
   Divider,
+  Checkbox,
+  Tooltip,
+  Menu,
+  CircularProgress,
+  Alert,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -40,6 +45,9 @@ import {
   UploadFile as UploadFileIcon,
   Download as DownloadIcon,
   Image as ImageIcon,
+  MoreVert as MoreVertIcon,
+  CheckBox as CheckBoxIcon,
+  CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
 } from '@mui/icons-material'
 import * as XLSX from 'xlsx'
 import Toast from '../components/Toast'
@@ -47,53 +55,71 @@ import Toast from '../components/Toast'
 function ProductsList() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const [attributes, setAttributes] = useState([])
-  const [products, setProducts] = useState(
-    JSON.parse(localStorage.getItem('products') || '[]')
-  )
+  const dispatch = useDispatch()
+  const { attributes, loading: attributesLoading } = useSelector((state) => state.productAttributes)
+  const { products, loading: productsLoading, total, currentPage, totalPages } = useSelector((state) => state.products)
+  
   const [page, setPage] = useState(1)
   const [openDialog, setOpenDialog] = useState(false)
+  const [openDownloadDialog, setOpenDownloadDialog] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({})
   const [errors, setErrors] = useState({})
+  const [selectedProducts, setSelectedProducts] = useState([])
+  const [selectAll, setSelectAll] = useState(false)
   const [toast, setToast] = useState({ open: false, message: '', severity: 'info' })
+  const [anchorEl, setAnchorEl] = useState(null)
   const rowsPerPage = 10
+  const prevLoading = useRef(false)
 
+  // Load attributes and products from Redux
   useEffect(() => {
-    const attrs = JSON.parse(localStorage.getItem('productAttributes') || '[]')
-    setAttributes(attrs.sort((a, b) => (a.order || 0) - (b.order || 0)))
-  }, [])
+    dispatch({ type: 'GET_ATTRIBUTES_REQUEST' })
+    dispatch({ type: 'GET_PRODUCTS_REQUEST', payload: { page: 1, limit: 1000 } })
+  }, [dispatch])
 
-  // Debounced save to localStorage
+  // Handle success messages
+  const prevLoading = useRef(productLoading)
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      try {
-        localStorage.setItem('products', JSON.stringify(products))
-      } catch (error) {
-        console.error('Error saving products to localStorage:', error)
+    if (prevLoading.current && !productLoading && !productError) {
+      // Check if it was a create/update/delete action
+      if (editingId === null && !openDialog) {
+        // Likely a delete or create success
+        setToast({
+          open: true,
+          message: 'Thao tác thành công!',
+          severity: 'success',
+        })
       }
-    }, 300) // Debounce 300ms
+    }
+    prevLoading.current = productLoading
+  }, [productLoading, productError, editingId, openDialog])
 
-    return () => clearTimeout(timeoutId)
-  }, [products])
+  // Update page when Redux currentPage changes
+  useEffect(() => {
+    if (currentPage) {
+      setPage(currentPage)
+    }
+  }, [currentPage])
 
   // Memoize pagination calculations
   const paginationData = useMemo(() => {
-    const totalPages = Math.ceil(products.length / rowsPerPage)
+    const totalPagesCalc = totalPages || Math.ceil(products.length / rowsPerPage)
     const startIndex = (page - 1) * rowsPerPage
     const endIndex = startIndex + rowsPerPage
     const currentProducts = products.slice(startIndex, endIndex)
-    return { totalPages, startIndex, endIndex, currentProducts }
-  }, [products, page, rowsPerPage])
+    return { totalPages: totalPagesCalc, startIndex, endIndex, currentProducts }
+  }, [products, page, rowsPerPage, totalPages])
 
   const handlePageChange = useCallback((event, value) => {
     setPage(value)
-  }, [])
+    dispatch({ type: 'GET_PRODUCTS_REQUEST', payload: { page: value, limit: rowsPerPage } })
+  }, [dispatch, rowsPerPage])
 
   const handleInputChange = (e, attributeId) => {
     const { name, value, files } = e.target
     const newFormData = { ...formData }
-    const attribute = attributes.find((attr) => attr.id === attributeId)
+    const attribute = attributes.find((attr) => attr._id === attributeId || attr.id === attributeId)
 
     if (files && files.length > 0) {
       // Handle multiple file upload for image-gallery
@@ -168,25 +194,26 @@ function ProductsList() {
   const validateForm = () => {
     const newErrors = {}
     attributes.forEach((attr) => {
+      const attrId = attr._id || attr.id
       if (attr.required) {
         if (attr.type === 'image-gallery') {
-          const galleryData = formData[attr.id]
+          const galleryData = formData[attrId]
           if (!galleryData || !Array.isArray(galleryData) || galleryData.length === 0) {
-            newErrors[attr.id] = `${attr.name} là bắt buộc (ít nhất 1 ảnh)`
+            newErrors[attrId] = `${attr.name} là bắt buộc (ít nhất 1 ảnh)`
           }
-        } else if (!formData[attr.id]) {
-          newErrors[attr.id] = `${attr.name} là bắt buộc`
+        } else if (!formData[attrId]) {
+          newErrors[attrId] = `${attr.name} là bắt buộc`
         }
       }
-      if (attr.type === 'email' && formData[attr.id]) {
+      if (attr.type === 'email' && formData[attrId]) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(formData[attr.id])) {
-          newErrors[attr.id] = 'Email không hợp lệ'
+        if (!emailRegex.test(formData[attrId])) {
+          newErrors[attrId] = 'Email không hợp lệ'
         }
       }
-      if (attr.type === 'number' && formData[attr.id]) {
-        if (isNaN(Number(formData[attr.id]))) {
-          newErrors[attr.id] = 'Giá trị phải là số'
+      if (attr.type === 'number' && formData[attrId]) {
+        if (isNaN(Number(formData[attrId]))) {
+          newErrors[attrId] = 'Giá trị phải là số'
         }
       }
     })
@@ -196,8 +223,9 @@ function ProductsList() {
 
   const handleOpenDialog = (product = null) => {
     if (product) {
-      setEditingId(product.id)
-      setFormData(product.data || {})
+      setEditingId(product._id || product.id)
+      // Backend uses 'attributes', frontend uses 'data' for compatibility
+      setFormData(product.attributes || product.data || {})
     } else {
       setEditingId(null)
       setFormData({})
@@ -216,53 +244,61 @@ function ProductsList() {
   const handleSave = () => {
     if (!validateForm()) return
 
+    // Convert formData to match backend format (attributes is a Map)
+    const productData = {
+      attributes: formData,
+    }
+
     if (editingId) {
-      setProducts((prev) =>
-        prev.map((product) =>
-          product.id === editingId
-            ? { ...product, data: formData, updatedAt: new Date().toISOString() }
-            : product
-        )
-      )
-      setToast({
-        open: true,
-        message: 'Cập nhật sản phẩm thành công!',
-        severity: 'success',
+      dispatch({
+        type: 'UPDATE_PRODUCT_REQUEST',
+        payload: {
+          id: editingId,
+          productData,
+        },
       })
     } else {
-      const newProduct = {
-        id: `product-${Date.now()}`,
-        data: formData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      setProducts((prev) => [...prev, newProduct])
-      setToast({
-        open: true,
-        message: 'Thêm sản phẩm thành công!',
-        severity: 'success',
+      dispatch({
+        type: 'CREATE_PRODUCT_REQUEST',
+        payload: productData,
       })
     }
 
     handleCloseDialog()
-    setTimeout(() => setToast({ ...toast, open: false }), 3000)
-    setPage(1)
   }
 
   const handleDelete = (id) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-      setProducts((prev) => prev.filter((product) => product.id !== id))
-      setToast({
-        open: true,
-        message: 'Xóa sản phẩm thành công!',
-        severity: 'success',
-      })
-      setTimeout(() => setToast({ ...toast, open: false }), 3000)
-      const newTotalPages = Math.ceil((products.length - 1) / rowsPerPage)
-      if (page > newTotalPages && newTotalPages > 0) {
-        setPage(newTotalPages)
-      }
+      dispatch({ type: 'DELETE_PRODUCT_REQUEST', payload: id })
     }
+  }
+
+  const handleDeleteSelected = () => {
+    if (selectedProducts.length === 0) return
+    if (window.confirm(`Bạn có chắc chắn muốn xóa ${selectedProducts.length} sản phẩm đã chọn?`)) {
+      selectedProducts.forEach((id) => {
+        dispatch({ type: 'DELETE_PRODUCT_REQUEST', payload: id })
+      })
+      setSelectedProducts([])
+      setSelectAll(false)
+    }
+  }
+
+  const handleSelectProduct = (productId) => {
+    setSelectedProducts((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+    )
+  }
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedProducts([])
+    } else {
+      setSelectedProducts(paginationData.currentProducts.map((p) => p._id || p.id))
+    }
+    setSelectAll(!selectAll)
   }
 
   const handleCSVUpload = (e) => {
@@ -278,39 +314,57 @@ function ProductsList() {
         const jsonData = XLSX.utils.sheet_to_json(firstSheet)
 
         if (jsonData.length === 0) {
-          alert('File CSV không có dữ liệu')
+          setToast({
+            open: true,
+            message: 'File CSV không có dữ liệu',
+            severity: 'error',
+          })
           return
         }
 
-        // Map CSV columns to attributes
+        // Map CSV columns to attributes (only text types)
+        const textAttributes = attributes.filter((attr) => 
+          ['text', 'number', 'email', 'textarea', 'select'].includes(attr.type)
+        )
+
         const newProducts = jsonData.map((row) => {
           const productData = {}
-          attributes.forEach((attr) => {
+          textAttributes.forEach((attr) => {
+            const attrId = attr._id || attr.id
             const columnName = attr.name
-            if (row[columnName] !== undefined) {
-              productData[attr.id] = String(row[columnName])
+            if (row[columnName] !== undefined && row[columnName] !== null && row[columnName] !== '') {
+              // Handle different attribute types
+              if (attr.type === 'number') {
+                productData[attrId] = Number(row[columnName]) || row[columnName]
+              } else {
+                productData[attrId] = String(row[columnName])
+              }
             }
           })
 
           return {
-            id: `product-${Date.now()}-${Math.random()}`,
             data: productData,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
           }
         })
 
-        setProducts((prev) => [...prev, ...newProducts])
+        // Create products via API
+        newProducts.forEach((product) => {
+          dispatch({ type: 'CREATE_PRODUCT_REQUEST', payload: product })
+        })
+
         setToast({
           open: true,
           message: `Đã import ${newProducts.length} sản phẩm từ CSV!`,
           severity: 'success',
         })
-        setTimeout(() => setToast({ ...toast, open: false }), 3000)
         setPage(1)
       } catch (error) {
         console.error('Error reading CSV file:', error)
-        alert('Lỗi khi đọc file CSV. Vui lòng kiểm tra lại file.')
+        setToast({
+          open: true,
+          message: 'Lỗi khi đọc file CSV. Vui lòng kiểm tra lại file.',
+          severity: 'error',
+        })
       }
     }
     reader.readAsArrayBuffer(file)
@@ -324,13 +378,26 @@ function ProductsList() {
         message: 'Vui lòng tạo thuộc tính trước!',
         severity: 'warning',
       })
-      setTimeout(() => setToast({ ...toast, open: false }), 3000)
+      return
+    }
+
+    // Only include text-based attributes
+    const textAttributes = attributes.filter((attr) => 
+      ['text', 'number', 'email', 'textarea', 'select'].includes(attr.type)
+    )
+
+    if (textAttributes.length === 0) {
+      setToast({
+        open: true,
+        message: 'Không có thuộc tính loại text để tạo mẫu CSV!',
+        severity: 'warning',
+      })
       return
     }
 
     // Create template data
     const templateData = [
-      attributes.reduce((acc, attr) => {
+      textAttributes.reduce((acc, attr) => {
         acc[attr.name] = `Giá trị mẫu cho ${attr.name}`
         return acc
       }, {}),
@@ -342,20 +409,78 @@ function ProductsList() {
     XLSX.utils.book_append_sheet(wb, ws, 'Products')
 
     // Set column widths
-    const colWidths = attributes.map(() => ({ wch: 30 }))
+    const colWidths = textAttributes.map(() => ({ wch: 30 }))
     ws['!cols'] = colWidths
 
     // Download file
     XLSX.writeFile(wb, 'Mau_San_Pham.csv')
   }
 
+  const handleDownloadSelected = () => {
+    if (selectedProducts.length === 0) {
+      setToast({
+        open: true,
+        message: 'Vui lòng chọn sản phẩm để tải xuống!',
+        severity: 'warning',
+      })
+      return
+    }
+
+    // Only include text-based attributes
+    const textAttributes = attributes.filter((attr) => 
+      ['text', 'number', 'email', 'textarea', 'select'].includes(attr.type)
+    )
+
+    const selectedProductsData = products.filter((p) => 
+      selectedProducts.includes(p._id || p.id)
+    )
+
+    const exportData = selectedProductsData.map((product) => {
+      const row = {}
+      const productData = getProductAttributes(product)
+      textAttributes.forEach((attr) => {
+        const attrId = attr._id || attr.id
+        row[attr.name] = productData[attrId] || ''
+      })
+      return row
+    })
+
+    // Create workbook
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Products')
+
+    // Set column widths
+    const colWidths = textAttributes.map(() => ({ wch: 30 }))
+    ws['!cols'] = colWidths
+
+    // Download file
+    XLSX.writeFile(wb, `San_Pham_${new Date().toISOString().split('T')[0]}.csv`)
+    
+    setToast({
+      open: true,
+      message: `Đã tải xuống ${selectedProducts.length} sản phẩm!`,
+      severity: 'success',
+    })
+    setOpenDownloadDialog(false)
+  }
+
   // Memoize findImageAttribute function
   const findImageAttribute = useCallback(
     (product) => {
+      // Backend uses 'attributes', frontend uses 'data' for compatibility
+      let productData = product.attributes || product.data || {}
+      
+      // Convert Map to object if needed
+      if (productData instanceof Map) {
+        productData = Object.fromEntries(productData)
+      }
+      
       // First, check for image-gallery
       for (const attr of attributes) {
-        if (attr.type === 'image-gallery' && product.data[attr.id]) {
-          const galleryData = product.data[attr.id]
+        const attrId = attr._id || attr.id
+        if (attr.type === 'image-gallery' && productData[attrId]) {
+          const galleryData = productData[attrId]
           if (Array.isArray(galleryData) && galleryData.length > 0) {
             return { attribute: attr, imageData: galleryData[0], isGallery: true, gallery: galleryData }
           }
@@ -363,12 +488,13 @@ function ProductsList() {
       }
       // Then check for single file image
       for (const attr of attributes) {
-        if (attr.type === 'file' && product.data[attr.id]) {
-          const fileData = product.data[attr.id]
-          if (fileData.fileType && fileData.fileType.startsWith('image/')) {
+        const attrId = attr._id || attr.id
+        if (attr.type === 'file' && productData[attrId]) {
+          const fileData = productData[attrId]
+          if (fileData?.fileType && fileData.fileType.startsWith('image/')) {
             return { attribute: attr, imageData: fileData, isGallery: false }
           }
-          if (fileData.data && typeof fileData.data === 'string' && fileData.data.startsWith('data:image/')) {
+          if (fileData?.data && typeof fileData.data === 'string' && fileData.data.startsWith('data:image/')) {
             return { attribute: attr, imageData: fileData, isGallery: false }
           }
         }
@@ -379,8 +505,9 @@ function ProductsList() {
   )
 
   const renderFormField = (attribute) => {
-    const value = formData[attribute.id] || ''
-    const error = errors[attribute.id]
+    const attrId = attribute._id || attribute.id
+    const value = formData[attrId] || ''
+    const error = errors[attrId]
 
     switch (attribute.type) {
       case 'text':
@@ -389,7 +516,7 @@ function ProductsList() {
             fullWidth
             label={attribute.name}
             value={value}
-            onChange={(e) => handleInputChange(e, attribute.id)}
+            onChange={(e) => handleInputChange(e, attrId)}
             error={!!error}
             helperText={error}
             required={attribute.required}
@@ -403,7 +530,7 @@ function ProductsList() {
             label={attribute.name}
             type="number"
             value={value}
-            onChange={(e) => handleInputChange(e, attribute.id)}
+            onChange={(e) => handleInputChange(e, attrId)}
             error={!!error}
             helperText={error}
             required={attribute.required}
@@ -417,7 +544,7 @@ function ProductsList() {
             label={attribute.name}
             type="email"
             value={value}
-            onChange={(e) => handleInputChange(e, attribute.id)}
+            onChange={(e) => handleInputChange(e, attrId)}
             error={!!error}
             helperText={error}
             required={attribute.required}
@@ -432,7 +559,7 @@ function ProductsList() {
             multiline
             rows={4}
             value={value}
-            onChange={(e) => handleInputChange(e, attribute.id)}
+            onChange={(e) => handleInputChange(e, attrId)}
             error={!!error}
             helperText={error}
             required={attribute.required}
@@ -445,11 +572,11 @@ function ProductsList() {
             <input
               accept="*/*"
               style={{ display: 'none' }}
-              id={`file-${attribute.id}`}
+              id={`file-${attrId}`}
               type="file"
-              onChange={(e) => handleInputChange(e, attribute.id)}
+              onChange={(e) => handleInputChange(e, attrId)}
             />
-            <label htmlFor={`file-${attribute.id}`}>
+            <label htmlFor={`file-${attrId}`}>
               <Button variant="outlined" component="span" fullWidth>
                 {value?.fileName || `Chọn file cho ${attribute.name}`}
               </Button>
@@ -473,12 +600,12 @@ function ProductsList() {
             <input
               accept="image/*"
               style={{ display: 'none' }}
-              id={`gallery-${attribute.id}`}
+              id={`gallery-${attrId}`}
               type="file"
               multiple
-              onChange={(e) => handleInputChange(e, attribute.id)}
+              onChange={(e) => handleInputChange(e, attrId)}
             />
-            <label htmlFor={`gallery-${attribute.id}`}>
+            <label htmlFor={`gallery-${attrId}`}>
               <Button variant="outlined" component="span" fullWidth startIcon={<ImageIcon />}>
                 Thêm hình ảnh ({images.length} ảnh)
               </Button>
@@ -524,7 +651,7 @@ function ProductsList() {
                               bgcolor: 'rgba(0,0,0,0.7)',
                             },
                           }}
-                          onClick={() => handleRemoveImage(attribute.id, index)}
+                          onClick={() => handleRemoveImage(attrId, index)}
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -549,13 +676,13 @@ function ProductsList() {
             )}
           </Box>
         )
-      case 'selection':
+      case 'select':
         return (
           <FormControl fullWidth sx={{ mb: 2 }} error={!!error} required={attribute.required}>
             <InputLabel>{attribute.name}</InputLabel>
             <Select
               value={value}
-              onChange={(e) => handleInputChange(e, attribute.id)}
+              onChange={(e) => handleInputChange(e, attrId)}
               label={attribute.name}
             >
               {attribute.options?.map((option, index) => (
@@ -574,6 +701,46 @@ function ProductsList() {
       default:
         return null
     }
+  }
+
+  const productError = useSelector((state) => state.products?.error)
+  const productAttributeError = useSelector((state) => state.productAttributes?.error)
+  const productLoading = useSelector((state) => state.products?.loading)
+
+  // Handle Redux success/error
+  useEffect(() => {
+    if (productError) {
+      setToast({
+        open: true,
+        message: productError,
+        severity: 'error',
+      })
+    }
+  }, [productError])
+
+  useEffect(() => {
+    if (productAttributeError) {
+      setToast({
+        open: true,
+        message: productAttributeError,
+        severity: 'error',
+      })
+    }
+  }, [productAttributeError])
+
+  // Handle success messages
+  useEffect(() => {
+    if (!productLoading && !productError) {
+      // Success handled by individual actions
+    }
+  }, [productLoading, productError])
+
+  if (attributesLoading) {
+    return (
+      <Container maxWidth="lg" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Container>
+    )
   }
 
   if (attributes.length === 0) {
@@ -599,6 +766,34 @@ function ProductsList() {
     )
   }
 
+  // Helper function to convert Map to object if needed
+  const getProductAttributes = useCallback((product) => {
+    if (!product) return {}
+    let attrs = product.attributes || product.data || {}
+    
+    // If it's a Map, convert to object
+    if (attrs instanceof Map) {
+      attrs = Object.fromEntries(attrs)
+    }
+    
+    // If it's already an object but might have Map values, convert recursively
+    if (typeof attrs === 'object' && attrs !== null && !Array.isArray(attrs)) {
+      const result = {}
+      for (const key in attrs) {
+        if (attrs[key] instanceof Map) {
+          result[key] = Object.fromEntries(attrs[key])
+        } else {
+          result[key] = attrs[key]
+        }
+      }
+      return result
+    }
+    
+    return attrs || {}
+  }, [])
+
+  const sortedAttributes = [...attributes].sort((a, b) => (a.order || 0) - (b.order || 0))
+
   return (
     <Container maxWidth="xl" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ mb: { xs: 2, md: 4 } }}>
@@ -620,7 +815,7 @@ function ProductsList() {
       <Card sx={{ mb: { xs: 2, md: 3 } }}>
         <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
           <Grid container spacing={{ xs: 1.5, sm: 2 }} alignItems="center">
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2}>
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
@@ -630,7 +825,7 @@ function ProductsList() {
                 Thêm sản phẩm
               </Button>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2}>
               <input
                 accept=".csv,.xlsx,.xls"
                 style={{ display: 'none' }}
@@ -649,7 +844,7 @@ function ProductsList() {
                 </Button>
               </label>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2}>
               <Button
                 variant="outlined"
                 startIcon={<DownloadIcon />}
@@ -659,9 +854,32 @@ function ProductsList() {
                 Tải mẫu CSV
               </Button>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2}>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={() => setOpenDownloadDialog(true)}
+                fullWidth
+                disabled={selectedProducts.length === 0}
+              >
+                Tải đã chọn ({selectedProducts.length})
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleDeleteSelected}
+                fullWidth
+                disabled={selectedProducts.length === 0}
+              >
+                Xóa đã chọn
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
               <Chip
-                label={`Tổng: ${products.length} sản phẩm`}
+                label={`Tổng: ${total || products.length} sản phẩm`}
                 color="primary"
                 variant="outlined"
                 sx={{ width: '100%', height: '40px' }}
@@ -674,7 +892,11 @@ function ProductsList() {
       {/* Products Table */}
       <Card sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {products.length === 0 ? (
+          {productsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : products.length === 0 ? (
             <Box
               sx={{
                 display: 'flex',
@@ -696,10 +918,11 @@ function ProductsList() {
             // Mobile Card View
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {paginationData.currentProducts.map((product, index) => {
+                const productId = product._id || product.id
                 const imageInfo = findImageAttribute(product)
                 return (
                   <Card
-                    key={product.id}
+                    key={productId}
                     sx={{
                       border: '1px solid',
                       borderColor: 'divider',
@@ -710,6 +933,11 @@ function ProductsList() {
                   >
                     <CardContent>
                       <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                        <Checkbox
+                          checked={selectedProducts.includes(productId)}
+                          onChange={() => handleSelectProduct(productId)}
+                          sx={{ alignSelf: 'flex-start' }}
+                        />
                         {imageInfo && imageInfo.imageData?.data ? (
                           <Box
                             sx={{
@@ -758,15 +986,17 @@ function ProductsList() {
                           </Box>
                         )}
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          {attributes.slice(0, 3).map((attr) => {
+                          {sortedAttributes.slice(0, 3).map((attr) => {
+                            const attrId = attr._id || attr.id
+                            const productData = getProductAttributes(product)
                             const value =
-                              attr.type === 'image-gallery' && Array.isArray(product.data[attr.id])
-                                ? `${product.data[attr.id].length} ảnh`
-                                : attr.type === 'file' && product.data[attr.id]?.fileName
-                                ? product.data[attr.id].fileName
-                                : product.data[attr.id] || '-'
+                              attr.type === 'image-gallery' && Array.isArray(productData[attrId])
+                                ? `${productData[attrId].length} ảnh`
+                                : attr.type === 'file' && productData[attrId]?.fileName
+                                ? productData[attrId].fileName
+                                : productData[attrId] || '-'
                             return (
-                              <Box key={attr.id} sx={{ mb: 1 }}>
+                              <Box key={attrId} sx={{ mb: 1 }}>
                                 <Typography variant="caption" color="text.secondary" display="block">
                                   {attr.name}
                                 </Typography>
@@ -778,19 +1008,21 @@ function ProductsList() {
                           })}
                         </Box>
                       </Box>
-                      {attributes.length > 3 && (
+                      {sortedAttributes.length > 3 && (
                         <>
                           <Divider sx={{ my: 1.5 }} />
                           <Grid container spacing={1.5}>
-                            {attributes.slice(3).map((attr) => {
+                            {sortedAttributes.slice(3).map((attr) => {
+                              const attrId = attr._id || attr.id
+                              const productData = getProductAttributes(product)
                               const value =
-                                attr.type === 'image-gallery' && Array.isArray(product.data[attr.id])
-                                  ? `${product.data[attr.id].length} ảnh`
-                                  : attr.type === 'file' && product.data[attr.id]?.fileName
-                                  ? product.data[attr.id].fileName
-                                  : product.data[attr.id] || '-'
+                                attr.type === 'image-gallery' && Array.isArray(productData[attrId])
+                                  ? `${productData[attrId].length} ảnh`
+                                  : attr.type === 'file' && productData[attrId]?.fileName
+                                  ? productData[attrId].fileName
+                                  : productData[attrId] || '-'
                               return (
-                                <Grid item xs={6} key={attr.id}>
+                                <Grid item xs={6} key={attrId}>
                                   <Typography variant="caption" color="text.secondary" display="block">
                                     {attr.name}
                                   </Typography>
@@ -817,7 +1049,7 @@ function ProductsList() {
                         <IconButton
                           color="error"
                           size="small"
-                          onClick={() => handleDelete(product.id)}
+                          onClick={() => handleDelete(productId)}
                           sx={{ border: '1px solid', borderColor: 'error.main' }}
                         >
                           <DeleteIcon />
@@ -847,6 +1079,13 @@ function ProductsList() {
               <Table stickyHeader sx={{ minWidth: 600 }}>
                 <TableHead>
                   <TableRow>
+                    <TableCell padding="checkbox" sx={{ width: 50 }}>
+                      <Checkbox
+                        indeterminate={selectedProducts.length > 0 && selectedProducts.length < paginationData.currentProducts.length}
+                        checked={selectAll && paginationData.currentProducts.length > 0}
+                        onChange={handleSelectAll}
+                      />
+                    </TableCell>
                     <TableCell sx={{ fontWeight: 600, width: { xs: '40px', sm: '50px' }, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                       STT
                     </TableCell>
@@ -860,9 +1099,9 @@ function ProductsList() {
                     >
                       Hình ảnh
                     </TableCell>
-                    {attributes.map((attr) => (
+                    {sortedAttributes.map((attr) => (
                       <TableCell
-                        key={attr.id}
+                        key={attr._id || attr.id}
                         sx={{
                           fontWeight: 600,
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
@@ -879,9 +1118,16 @@ function ProductsList() {
                 </TableHead>
                 <TableBody>
                   {paginationData.currentProducts.map((product, index) => {
+                    const productId = product._id || product.id
                     const imageInfo = findImageAttribute(product)
                     return (
-                      <TableRow key={product.id} hover>
+                      <TableRow key={productId} hover>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={selectedProducts.includes(productId)}
+                            onChange={() => handleSelectProduct(productId)}
+                          />
+                        </TableCell>
                         <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                           {paginationData.startIndex + index + 1}
                         </TableCell>
@@ -947,24 +1193,28 @@ function ProductsList() {
                             </Box>
                           )}
                         </TableCell>
-                        {attributes.map((attr) => (
-                          <TableCell
-                            key={attr.id}
-                            sx={{
-                              fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                              maxWidth: { xs: 150, sm: 'none' },
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: { xs: 'nowrap', sm: 'normal' },
-                            }}
-                          >
-                            {attr.type === 'image-gallery' && Array.isArray(product.data[attr.id])
-                              ? `${product.data[attr.id].length} ảnh`
-                              : attr.type === 'file' && product.data[attr.id]?.fileName
-                              ? product.data[attr.id].fileName
-                              : product.data[attr.id] || '-'}
-                          </TableCell>
-                        ))}
+                        {sortedAttributes.map((attr) => {
+                          const attrId = attr._id || attr.id
+                          const productData = getProductAttributes(product)
+                          return (
+                            <TableCell
+                              key={attrId}
+                              sx={{
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                maxWidth: { xs: 150, sm: 'none' },
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: { xs: 'nowrap', sm: 'normal' },
+                              }}
+                            >
+                              {attr.type === 'image-gallery' && Array.isArray(productData[attrId])
+                                ? `${productData[attrId].length} ảnh`
+                                : attr.type === 'file' && productData[attrId]?.fileName
+                                ? productData[attrId].fileName
+                                : productData[attrId] || '-'}
+                            </TableCell>
+                          )
+                        })}
                         <TableCell align="center">
                           <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
                             <IconButton
@@ -979,7 +1229,7 @@ function ProductsList() {
                             <IconButton
                               color="error"
                               size="small"
-                              onClick={() => handleDelete(product.id)}
+                              onClick={() => handleDelete(productId)}
                               aria-label="delete"
                               sx={{ padding: { xs: 0.5, sm: 1 } }}
                             >
@@ -990,9 +1240,9 @@ function ProductsList() {
                       </TableRow>
                     )
                   })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
 
           {/* Pagination */}
@@ -1017,7 +1267,7 @@ function ProductsList() {
         onClose={handleCloseDialog}
         maxWidth="md"
         fullWidth
-        fullScreen={window.innerWidth < 600}
+        fullScreen={isMobile}
         sx={{
           '& .MuiDialog-paper': {
             m: { xs: 0, sm: 2 },
@@ -1030,8 +1280,8 @@ function ProductsList() {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
-            {attributes.map((attr) => (
-              <Box key={attr.id}>{renderFormField(attr)}</Box>
+            {sortedAttributes.map((attr) => (
+              <Box key={attr._id || attr.id}>{renderFormField(attr)}</Box>
             ))}
           </Box>
         </DialogContent>
@@ -1039,8 +1289,38 @@ function ProductsList() {
           <Button onClick={handleCloseDialog} startIcon={<CancelIcon />}>
             Hủy
           </Button>
-          <Button onClick={handleSave} variant="contained" startIcon={<SaveIcon />}>
-            Lưu
+          <Button onClick={handleSave} variant="contained" startIcon={<SaveIcon />} disabled={productsLoading}>
+            {productsLoading ? 'Đang lưu...' : 'Lưu'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Download Selected Dialog */}
+      <Dialog
+        open={openDownloadDialog}
+        onClose={() => setOpenDownloadDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Tải xuống sản phẩm đã chọn</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Bạn đã chọn <strong>{selectedProducts.length}</strong> sản phẩm để tải xuống.
+            Chỉ các thuộc tính loại text sẽ được xuất ra CSV.
+          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            File CSV sẽ chứa các thuộc tính: {sortedAttributes
+              .filter((attr) => ['text', 'number', 'email', 'textarea', 'select'].includes(attr.type))
+              .map((attr) => attr.name)
+              .join(', ')}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDownloadDialog(false)}>
+            Hủy
+          </Button>
+          <Button onClick={handleDownloadSelected} variant="contained" startIcon={<DownloadIcon />}>
+            Tải xuống
           </Button>
         </DialogActions>
       </Dialog>
@@ -1056,4 +1336,3 @@ function ProductsList() {
 }
 
 export default ProductsList
-

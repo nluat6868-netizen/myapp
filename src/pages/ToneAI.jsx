@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import {
   Container,
   Card,
@@ -96,6 +97,9 @@ const styleOptions = [
 ]
 
 function ToneAI() {
+  const dispatch = useDispatch()
+  const { tones: apiTones, loading: tonesLoading } = useSelector((state) => state.tones)
+
   // Load and normalize custom tones (convert old string style to array)
   const loadCustomTones = () => {
     try {
@@ -111,6 +115,24 @@ function ToneAI() {
   }
 
   const [customTones, setCustomTones] = useState(loadCustomTones())
+
+  // Load tones from API on mount and when tones are updated
+  useEffect(() => {
+    dispatch({ type: 'GET_TONES_REQUEST' })
+  }, [dispatch])
+
+  // Convert API tones to custom tones format
+  const apiTonesFormatted = (apiTones || []).map((tone) => ({
+    id: `api-${tone._id || tone.id}`,
+    name: tone.name,
+    description: tone.description || '',
+    style: tone.style || [],
+    formality: tone.formality || 'Thân thiện',
+    addressing: tone.addressing || 'Bạn',
+    isPreset: false,
+    isFromAPI: true,
+    _id: tone._id || tone.id,
+  }))
   const [selectedTone, setSelectedTone] = useState(
     localStorage.getItem('selectedTone') || 'preset-1'
   )
@@ -139,7 +161,8 @@ function ToneAI() {
   const [staffErrors, setStaffErrors] = useState({})
   const [toast, setToast] = useState({ open: false, message: '', severity: 'info' })
 
-  const allTones = [...presetTones, ...customTones]
+  // Combine all tones together (preset, API, and custom) - all in "Tone có sẵn"
+  const allTones = [...presetTones, ...apiTonesFormatted, ...customTones]
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -702,16 +725,23 @@ function ToneAI() {
       </Box>
 
       <Grid container spacing={3}>
-        {/* Preset Tones */}
-        <Grid item xs={12} md={6}>
+        {/* All Tones (Preset, API, and Custom) */}
+        <Grid item xs={12}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom fontWeight={600}>
                 Tone có sẵn
               </Typography>
               <Divider sx={{ mb: 2 }} />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {presetTones.map((tone) => (
+              {allTones.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Chưa có tone nào. Hãy tạo tone mới hoặc tạo từ Quick Bot Setup!
+                  </Typography>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {allTones.map((tone) => (
                   <Card
                     key={tone.id}
                     variant="outlined"
@@ -736,87 +766,26 @@ function ToneAI() {
                               sx={{ fontSize: 18, color: 'primary.main', ml: 1, verticalAlign: 'middle' }}
                             />
                           )}
+                          {tone.isPreset && (
+                            <Chip label="Mặc định" size="small" sx={{ ml: 1 }} />
+                          )}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          {tone.description}
+                          {tone.description || 'Không có mô tả'}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-                          {Array.isArray(tone.style)
+                          {Array.isArray(tone.style) && tone.style.length > 0
                             ? tone.style.map((style, index) => (
                                 <Chip key={index} label={style} size="small" />
                               ))
-                            : (
+                            : tone.style ? (
                                 <Chip label={tone.style} size="small" />
-                              )}
-                          <Chip label={tone.formality} size="small" />
-                          <Chip label={tone.addressing} size="small" />
+                              ) : null}
+                          {tone.formality && <Chip label={tone.formality} size="small" />}
+                          {tone.addressing && <Chip label={tone.addressing} size="small" />}
                         </Box>
                       </Box>
-                    </Box>
-                  </Card>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Custom Tones */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom fontWeight={600}>
-                Tone Custom
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              {customTones.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Chưa có tone custom nào. Hãy tạo tone mới!
-                  </Typography>
-                </Box>
-              ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {customTones.map((tone) => (
-                    <Card
-                      key={tone.id}
-                      variant="outlined"
-                      sx={{
-                        p: 2,
-                        cursor: 'pointer',
-                        border: selectedTone === tone.id ? '2px solid' : '1px solid',
-                        borderColor: selectedTone === tone.id ? 'primary.main' : 'divider',
-                        bgcolor: selectedTone === tone.id ? 'action.selected' : 'background.paper',
-                        '&:hover': {
-                          bgcolor: 'action.hover',
-                        },
-                      }}
-                      onClick={() => handleSelectTone(tone.id)}
-                    >
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="subtitle1" fontWeight={600}>
-                            {tone.name}
-                            {selectedTone === tone.id && (
-                              <CheckCircleIcon
-                                sx={{ fontSize: 18, color: 'primary.main', ml: 1, verticalAlign: 'middle' }}
-                              />
-                            )}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            {tone.description || 'Không có mô tả'}
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-                            {Array.isArray(tone.style)
-                              ? tone.style.map((style, index) => (
-                                  <Chip key={index} label={style} size="small" />
-                                ))
-                              : (
-                                  <Chip label={tone.style} size="small" />
-                                )}
-                            <Chip label={tone.formality} size="small" />
-                            <Chip label={tone.addressing} size="small" />
-                          </Box>
-                        </Box>
+                      {!tone.isPreset && (
                         <Box sx={{ display: 'flex', gap: 0.5 }}>
                           <IconButton
                             size="small"
@@ -839,9 +808,10 @@ function ToneAI() {
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Box>
-                      </Box>
-                    </Card>
-                  ))}
+                      )}
+                    </Box>
+                  </Card>
+                ))}
                 </Box>
               )}
             </CardContent>
